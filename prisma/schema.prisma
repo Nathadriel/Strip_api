@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite" // simple pour le TP ; remplacer par "mysql"/"postgresql" en prod
+  url      = env("DATABASE_URL")
+}
+
+// --- Modèles standards exigés par @next-auth/prisma-adapter ---
+// (non détaillés dans le support, mais indispensables : le PrismaAdapter
+// crée automatiquement les lignes Account/Session lors d'une connexion OAuth)
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// --- Modèles du support (slide "Schéma de la Base de Données") ---
+
+model User {
+  id               String    @id @default(cuid())
+  name             String?
+  email            String?   @unique
+  emailVerified    DateTime?
+  image            String?
+  hashedPassword   String?   // pour CredentialsProvider (email + mot de passe)
+  stripeCustomerId String?   @unique
+  hasPaid          Boolean   @default(false) // accès premium
+  accounts         Account[]
+  sessions         Session[]
+  orders           Order[]
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  description String?
+  price       Float
+  image       String?
+  orderItems  OrderItem[]
+}
+
+model Order {
+  id     String      @id @default(cuid())
+  userId String
+  status String      @default("pending")
+  total  Float
+  items  OrderItem[]
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int    @default(1)
+  price     Float
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+}
