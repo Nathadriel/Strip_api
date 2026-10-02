@@ -5,9 +5,10 @@ import { prisma } from "@/lib/prisma";
 import Stripe from "stripe";
 
 export async function POST(req: Request) {
-  // 1. Vérifier que la requête vient bien de Stripe
+  // 1. Lire le corps brut et la signature
   const body = await req.text();
-  const signature = headers().get("Stripe-Signature");
+  const headerList = await headers();
+  const signature = headerList.get("stripe-signature");
 
   if (!signature) {
     return new NextResponse("Signature manquante", { status: 400 });
@@ -20,9 +21,9 @@ export async function POST(req: Request) {
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!
     );
-  } catch (err) {
-    console.error("Signature webhook invalide :", err);
-    return new NextResponse("Signature invalide", { status: 400 });
+  } catch (err: any) {
+    console.error("Signature webhook invalide :", err.message);
+    return new NextResponse(`Signature invalide : ${err.message}`, { status: 400 });
   }
 
   // 2. Traiter l'événement
@@ -61,7 +62,6 @@ export async function POST(req: Request) {
     }
 
     default:
-      // Événements non gérés par ce cas pratique (paiement unique) : on les ignore.
       break;
   }
 
